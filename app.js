@@ -10,7 +10,7 @@ const db = mysql.createConnection({
   port: 3306,
   user: 'root',
   password: "123456",
-  database: 'pedrito_sac'
+  database: 'familia_db'
 })
 
 db.connect(err => {
@@ -21,73 +21,79 @@ db.connect(err => {
   console.log("Conectado a la base de datos")
 })
 
-// =======================
-// LISTAR EMPLEADOS (GET)
-// =======================
-app.get('/', (req, res) => {
+app.get('/familias', (req, res) => {
   db.query(
-    'SELECT * FROM empleados',
+    'SELECT * FROM familias',
     [],
     (err, rows) => {
       if (err) {
         console.error("Error al listar:", err)
-        return res.status(500).json({ error: 'Error al listar empleados' })
+        return res.status(500).json({ error: 'Error al listar familias' })
       }
 
-      // 🔴 ANTES: res.json(rows.lent)  (esto está mal)
-      // ✅ AHORA:
       res.json(rows)
     }
   )
 })
-
-// =======================
-// CREAR EMPLEADO (POST)
-// =======================
-app.post('/', (req, res) => {
-  const { name, lastName, age, dni } = req.body
-
+app.get('/miembros', (req, res) => {
   db.query(
-    'INSERT INTO empleados (name, lastName, age, dni) VALUES (?,?,?,?)',
-    [name, lastName, age, dni],
-    (err, result) => {
+    'SELECT * FROM miembros',
+    [],
+    (err, rows) => {
       if (err) {
-        console.error("Error al insertar:", err)
-        // 🔴 ANTES: res.sendStatus(500).json({ err }) (esto no funciona)
-        // ✅ AHORA:
-        return res.status(500).json({ error: 'Error al insertar empleado' })
+        console.error("Error al listar:", err)
+        return res.status(500).json({ error: 'Error al listar miembros' })
       }
 
-      return res.status(201).json({
-        message: "El nuevo personal ha sido creado",
-        id: result.insertId
-      })
+      res.json(rows)
+    }
+  )
+})
+app.post('/miembros', (req, res) => {
+  const { nombre, familia_id } = req.body
+
+  db.query(
+    'INSERT INTO miembros (nombre, familia_id) VALUES (?, ?)',
+    [nombre, familia_id],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err })
+      db.query(
+        'UPDATE familias SET total_miembros = total_miembros + 1 WHERE id = ?',
+        [familia_id]
+      )
+
+      res.json({ message: "Miembro creado", id: result.insertId })
     }
   )
 })
 
-// =======================
-// ACTUALIZAR EMPLEADO (PUT)
-// =======================
-app.put('/:id', (req, res) => {
+app.put('/miembros/:id', (req, res) => {
   const { id } = req.params
-  const { name, lastName, age, dni } = req.body
+  const { nombre } = req.body
 
   db.query(
-    'UPDATE empleados SET name = ?, lastName = ?, age = ?, dni = ? WHERE id = ?',
-    [name, lastName, age, dni, id],
+    'UPDATE miembros SET nombre = ? WHERE id = ?',
+    [nombre, id],
     (err, result) => {
       if (err) {
-        console.error("Error al actualizar personal:", err)
-        return res.status(500).json({ error: 'Error al actualizar empleado' })
+        return res.status(500).json({ error: err })
       }
+      res.json({ message: 'Miembro actualizado' })
+    }
+  )
+})
 
-      // Si no encontró filas para actualizar
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: 'Empleado no encontrado' })
+app.delete('/miembros/:id', (req, res) => {
+  const { id } = req.params
+
+  db.query(
+    'DELETE FROM miembros WHERE id = ?',
+    [id],
+    (err, result) => {
+      if (err) {
+        return res.status(500).json({ error: err })
       }
-
-      return res.status(200).json({ message: 'Personal actualizado' })
+      res.json({ message: 'Miembro eliminado' })
     }
   )
 })
