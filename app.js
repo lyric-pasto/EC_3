@@ -3,8 +3,6 @@ const mysql = require('mysql2')
 const app = express()
 const port = 3000
 
-const PERSONAL = []
-
 app.use(express.json())
 
 const db = mysql.createConnection({
@@ -18,57 +16,80 @@ const db = mysql.createConnection({
 db.connect(err => {
   if (err) {
     console.error("Error al conectar:", err)
-    return;
+    return
   }
-
   console.log("Conectado a la base de datos")
 })
 
-// endpoint
+// =======================
+// LISTAR EMPLEADOS (GET)
+// =======================
 app.get('/', (req, res) => {
   db.query(
-    'Select * from empleados',
+    'SELECT * FROM empleados',
     [],
     (err, rows) => {
       if (err) {
-        console.log("Error al listar")
+        console.error("Error al listar:", err)
+        return res.status(500).json({ error: 'Error al listar empleados' })
       }
+
+      // 🔴 ANTES: res.json(rows.lent)  (esto está mal)
+      // ✅ AHORA:
       res.json(rows)
     }
   )
 })
 
+// =======================
+// CREAR EMPLEADO (POST)
+// =======================
 app.post('/', (req, res) => {
   const { name, lastName, age, dni } = req.body
-  db.query(
-    `Insert Into empleados (name, lastName, age, dni) values (?,?,?,?)`,
-    [name, lastName, age, dni],
-    (err) => {
-      if (err) {
-        console.log("Error al insertar:", err)
-        res.sendStatus(500).json({ err })
-      }
-    })
 
-  res.send("El nuevo personal a sido creado")
+  db.query(
+    'INSERT INTO empleados (name, lastName, age, dni) VALUES (?,?,?,?)',
+    [name, lastName, age, dni],
+    (err, result) => {
+      if (err) {
+        console.error("Error al insertar:", err)
+        // 🔴 ANTES: res.sendStatus(500).json({ err }) (esto no funciona)
+        // ✅ AHORA:
+        return res.status(500).json({ error: 'Error al insertar empleado' })
+      }
+
+      return res.status(201).json({
+        message: "El nuevo personal ha sido creado",
+        id: result.insertId
+      })
+    }
+  )
 })
 
+// =======================
+// ACTUALIZAR EMPLEADO (PUT)
+// =======================
 app.put('/:id', (req, res) => {
-
   const { id } = req.params
-
   const { name, lastName, age, dni } = req.body
-  db.query(
-    `Update empleados set name = ?, lastName = ?, age = ?, dni = ? Where id = ?`,
-    [name, lastName, age, dni, id],
-    (err) => {
-    if (err) {
-      console.log("Error al actualizar personal:", err)
-      res.sendStatus(500).json({ err })
-    }
-  })
 
-  res.status(200).send("Personal actualizado")
+  db.query(
+    'UPDATE empleados SET name = ?, lastName = ?, age = ?, dni = ? WHERE id = ?',
+    [name, lastName, age, dni, id],
+    (err, result) => {
+      if (err) {
+        console.error("Error al actualizar personal:", err)
+        return res.status(500).json({ error: 'Error al actualizar empleado' })
+      }
+
+      // Si no encontró filas para actualizar
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Empleado no encontrado' })
+      }
+
+      return res.status(200).json({ message: 'Personal actualizado' })
+    }
+  )
 })
 
 app.listen(port, () => {
